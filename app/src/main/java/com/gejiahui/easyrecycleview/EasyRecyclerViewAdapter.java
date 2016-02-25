@@ -1,6 +1,8 @@
 package com.gejiahui.easyrecycleview;
 
+import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -21,8 +23,14 @@ public abstract class EasyRecyclerViewAdapter<T> extends RecyclerView.Adapter<Re
 
     private OnItemClickListener mItemClickListener;
 
+    private OnItemLongClickListener mItemLongClickListener;
+
     public void setOnItemClickListener(OnItemClickListener listener){
         mItemClickListener = listener;
+    }
+
+    public void setOnItemLongClickListener(OnItemLongClickListener listener){
+        mItemLongClickListener = listener;
     }
 
     public void setHeaderView(View headerView) {
@@ -32,7 +40,8 @@ public abstract class EasyRecyclerViewAdapter<T> extends RecyclerView.Adapter<Re
 
     public void setFooterView(View footerView) {
         mFooterView = footerView;
-        notifyItemInserted(getFooterPosition());
+        //  notifyItemInserted(getFooterPosition());
+        notifyDataSetChanged();
     }
 
     public EasyRecyclerViewAdapter(List<T> mDatas) {
@@ -77,22 +86,68 @@ public abstract class EasyRecyclerViewAdapter<T> extends RecyclerView.Adapter<Re
             return;
         }
 
-        final int realPosition = getRealPosition(holder);
-        final T data = mDatas.get(realPosition);
-        onBind(holder,realPosition,data);
+        final int dataPosition = getDataPosition(holder);
+        final T data = mDatas.get(dataPosition);
+        onBind(holder,dataPosition,data);
 
         if(mItemClickListener != null){
             holder.itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    mItemClickListener.OnItemClick(v,realPosition,data);
+                    mItemClickListener.OnItemClick(v, dataPosition, data);
+                }
+            });
+        }
+
+        if(mItemLongClickListener != null){
+            holder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    mItemLongClickListener.OnItemLongClick(v,dataPosition,data);
+                    return true;
                 }
             });
         }
 
     }
 
-    public int getRealPosition(RecyclerView.ViewHolder holder) {
+    @Override
+    public void onAttachedToRecyclerView(RecyclerView recyclerView) {
+        super.onAttachedToRecyclerView(recyclerView);
+        final RecyclerView.LayoutManager layoutParams = recyclerView.getLayoutManager();
+        if(layoutParams instanceof GridLayoutManager){
+            ((GridLayoutManager) layoutParams).setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+                @Override
+                public int getSpanSize(int position) {
+                    int type = getItemViewType(position);
+                    if (type == TYPE_HEAD || type == TYPE_FOOT)  return ((GridLayoutManager) layoutParams).getSpanCount();
+                    return 1;
+                }
+            });
+        }
+
+    }
+
+    @Override
+    public void onViewAttachedToWindow(RecyclerView.ViewHolder holder) {
+        super.onViewAttachedToWindow(holder);
+        ViewGroup.LayoutParams layoutParams = holder.itemView.getLayoutParams();
+        if(layoutParams instanceof StaggeredGridLayoutManager.LayoutParams){
+            StaggeredGridLayoutManager.LayoutParams params = (StaggeredGridLayoutManager.LayoutParams) layoutParams;
+            if(mHeaderView != null && holder.getLayoutPosition() == 0){
+                params.setFullSpan(true);
+            }else if (mFooterView != null && holder.getLayoutPosition() == getFooterPosition() ){
+                params.setFullSpan(true);
+            }else{
+                params.setFullSpan(false);
+            }
+
+        }
+
+
+    }
+
+    public int getDataPosition(RecyclerView.ViewHolder holder) {
         int position = holder.getLayoutPosition();
         return mHeaderView == null ? position : position - 1;
     }
@@ -114,10 +169,10 @@ public abstract class EasyRecyclerViewAdapter<T> extends RecyclerView.Adapter<Re
 
     @Override
     public  int getItemCount(){
-      if(mFooterView !=null && mHeaderView != null){
-          return mDatas.size()+2;
-      }
-      else if(mFooterView !=null || mHeaderView != null){
+        if(mFooterView !=null && mHeaderView != null){
+            return mDatas.size()+2;
+        }
+        else if(mFooterView !=null || mHeaderView != null){
             return mDatas.size()+1;
         }
         return mDatas.size();
@@ -135,6 +190,10 @@ public abstract class EasyRecyclerViewAdapter<T> extends RecyclerView.Adapter<Re
 
     interface OnItemClickListener<T>{
         public void OnItemClick(View view, int position,T data);
+    }
+
+    interface OnItemLongClickListener<T>{
+        public void OnItemLongClick(View view,int position,T data);
     }
 
 }

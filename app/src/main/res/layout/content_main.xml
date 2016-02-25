@@ -17,5 +17,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
+        android:padding="8dp"
+        android:background="#ea0350"
         android:text="Hello World!" />
 </RelativeLayout>
